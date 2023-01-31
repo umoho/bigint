@@ -2,7 +2,7 @@ use std::{ops::{Add, Neg, Sub}, fmt::Display, cmp::Ordering};
 
 const BASE: u8 = 10;
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, Eq, Clone)]
 pub struct BigInt {
     /** 
      * The sign of negative.
@@ -13,7 +13,7 @@ pub struct BigInt {
 
     /**
      * The numbers storage by a vector.
-     * e.g. If the number means 123, this field will just like `vec![1, 2, 3]`.
+     * e.g. If the number means 123, this field will just like `vec!3, 2, 1]`.
      */
     numbers: Vec<u8>
 }
@@ -51,13 +51,9 @@ impl TryFrom<&str> for BigInt {
             }
             numbers.push(prase_char(c)?)
         }
-        /* Remove the meaningless zero */
-        loop {
-            if numbers[0] != 0 {
-                break;
-            }
-            numbers.remove(0);
-        }
+
+        let mut numbers = remove_redundant_zero(&numbers);
+        numbers.reverse();
         Ok(Self { negative, numbers })
     }
 } 
@@ -77,14 +73,47 @@ fn test_create() {
 impl Display for BigInt {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut s = String::new();
+        let mut numbers = self.numbers.to_owned();
+        numbers.reverse();
+        let numbers = remove_redundant_zero(&numbers);
         if self.negative {
             s += "-";
         }
-        for n in &self.numbers {
+        for n in numbers {
             s += &n.to_string();
         }
         write!(f, "{}", s)
     }
+}
+
+#[test]
+fn test_display() {
+    let may_with_zero = BigInt::try_from("10").unwrap() - BigInt::try_from("2").unwrap();
+    println!("{}", may_with_zero);
+}
+
+impl PartialEq for BigInt {
+    fn eq(&self, other: &Self) -> bool {
+        fn eq_numbers(left: &Vec<u8>, right: &Vec<u8>) -> bool {
+            let (mut left, mut right) = (left.to_owned(), right.to_owned());
+            left.reverse();
+            right.reverse();
+            
+            let left = remove_redundant_zero(&left);
+            let right = remove_redundant_zero(&right);
+
+            left == right
+        }
+        self.negative == other.negative && eq_numbers(&self.numbers, &other.numbers)
+    }
+}
+
+#[test]
+fn test_partial_eq() {
+    let one = BigInt::try_from("10").unwrap() - BigInt::try_from("2").unwrap();
+    let another = BigInt::try_from("8").unwrap();
+    println!("one: {:?}, another: {:?}", one, another);
+    assert!(one == another);
 }
 
 impl PartialOrd for BigInt {
@@ -209,25 +238,21 @@ impl Add for BigInt {
 
     fn add(self, rhs: Self) -> Self::Output {
         fn add_numbers(left: Vec<u8>, right: Vec<u8>) -> Vec<u8> {
-            let (mut left, mut right, bigger_len) = balance_len(left, right);
+            let (left, right, bigger_len) = balance_len(left, right);
 
             let mut carry_bit = 0;
             let mut sum = Vec::with_capacity(bigger_len);
-
-            left.reverse();
-            right.reverse();
 
             for k in 0..bigger_len {
                 sum.push((left[k] + right[k] + carry_bit) % BASE);
                 carry_bit = (left[k] + right[k] + carry_bit) / BASE;
 
-                println!(
-                    "<current> k: {}, left[k]: {}, right[k]: {}, carry_bit: {}, sum: {:?}",
-                    k, left[k], right[k], carry_bit, sum
-                );
+                // println!(
+                //     "<current> k: {}, left[k]: {}, right[k]: {}, carry_bit: {}, sum: {:?}",
+                //     k, left[k], right[k], carry_bit, sum
+                // );
             }
 
-            sum.reverse();
             sum
         }
 
@@ -273,11 +298,8 @@ impl Sub for BigInt {
 
     fn sub(self, rhs: Self) -> Self::Output {
         fn sub_numbers(left: Vec<u8>, right: Vec<u8>) -> Vec<u8> {
-            let (mut left, mut right, bigger_len) = balance_len(left, right);
+            let (mut left, right, bigger_len) = balance_len(left, right);
             let mut results = Vec::with_capacity(bigger_len);
-
-            left.reverse();
-            right.reverse();
 
             for k in 0..bigger_len {
                 if left[k] < right[k] {
@@ -286,8 +308,7 @@ impl Sub for BigInt {
                 }
                 results.push(left[k] - right[k]);
             }
-            
-            results.reverse();
+
             results
         }
 
@@ -335,8 +356,6 @@ fn test_sub() {
     let small = BigInt::try_from("-50").unwrap();
     println!("{}", big.clone() - small.clone());
     println!("{}", small - big);
-
-    println!("{}", BigInt::try_from("114514").unwrap() - BigInt::try_from("514").unwrap())
 }
 
 fn prase_char(c: char) -> Result<u8, ParseError> {
@@ -359,21 +378,20 @@ fn fill_zero(origin: Vec<u8>, len: usize) -> Vec<u8> {
     if origin.len() >= len {
         return origin;
     }
-    let mut clone = origin.clone();
-    clone.reverse();
+
     let mut new = Vec::with_capacity(len);
     let mut index = 0;
     loop {
         if index >= len {
             break;
         }
-        match clone.get(index) {
+        match origin.get(index) {
             Some(n) => new.push(n.to_owned()),
             None => new.push(0),
         }
         index += 1;
     }
-    new.reverse();
+
     new
 }
 
@@ -388,6 +406,23 @@ fn balance_len(left: Vec<u8>, right: Vec<u8>) -> (Vec<u8>, Vec<u8>, usize) {
         let left = fill_zero(left, bigger_len);
         (left, right, bigger_len)
     }
+}
+
+#[inline]
+fn remove_redundant_zero(origin: &Vec<u8>) -> Vec<u8> {
+    let mut clone = origin.to_owned();
+
+    if origin.len() <= 1 {
+        return clone;
+    }
+
+    loop {
+        if clone[0] != 0 {
+            break;
+        }
+        clone.remove(0);
+    }
+    clone
 }
 
 #[derive(Debug)]
