@@ -13,7 +13,7 @@ pub struct BigInt {
 
     /**
      * The numbers storage by a vector.
-     * e.g. If the number means 123, this field will just like `vec!3, 2, 1]`.
+     * e.g. If the number means 123, this field will just like `vec![3, 2, 1]`.
      */
     numbers: Vec<u8>
 }
