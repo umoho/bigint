@@ -209,15 +209,25 @@ impl Add for BigInt {
 
     fn add(self, rhs: Self) -> Self::Output {
         fn add_numbers(left: Vec<u8>, right: Vec<u8>) -> Vec<u8> {
-            let (left, right, bigger_len) = balance_len(left, right);
+            let (mut left, mut right, bigger_len) = balance_len(left, right);
 
             let mut carry_bit = 0;
             let mut sum = Vec::with_capacity(bigger_len);
 
+            left.reverse();
+            right.reverse();
+
             for k in 0..bigger_len {
                 sum.push((left[k] + right[k] + carry_bit) % BASE);
                 carry_bit = (left[k] + right[k] + carry_bit) / BASE;
+
+                println!(
+                    "<current> k: {}, left[k]: {}, right[k]: {}, carry_bit: {}, sum: {:?}",
+                    k, left[k], right[k], carry_bit, sum
+                );
             }
+
+            sum.reverse();
             sum
         }
 
@@ -237,6 +247,14 @@ impl Add for BigInt {
             }
         }
     }
+}
+
+#[test]
+fn tmp_test() {
+    let left = big_int!("1234567890");
+    let right = big_int!("114514");
+    println!("left: {:?}\nright: {:?}", left, right);
+    println!("result: {:?}", left + right);
 }
 
 #[test]
@@ -384,6 +402,6 @@ macro_rules! big_int {
 
 #[test]
 fn test_macro() {
-    let big_int = big_int!("1234567890") + big_int!("114514");
+    let big_int = big_int!("1234567890");
     println!("{}", big_int);
 }
