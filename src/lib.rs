@@ -374,3 +374,16 @@ fn balance_len(left: Vec<u8>, right: Vec<u8>) -> (Vec<u8>, Vec<u8>, usize) {
 
 #[derive(Debug)]
 pub struct ParseError { pub exceptional_char: char }
+
+#[macro_export]
+macro_rules! big_int {
+    ($num_str: literal) => {
+        BigInt::try_from($num_str).unwrap()
+    };
+}
+
+#[test]
+fn test_macro() {
+    let big_int = big_int!("1234567890") + big_int!("114514");
+    println!("{}", big_int);
+}
